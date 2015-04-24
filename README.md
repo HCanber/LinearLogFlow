@@ -1,9 +1,4 @@
-# NOT RELEASED YET
-&nbsp;
-The project is under development...
-&nbsp;
-
-&nbsp;
+UNDER DEVELOPMENT NOT YET RELEASED
 
 # LinearLogFlow
 LinearLogFlow is a service that runs on your servers and sends all your json-formatted log files to [Elasticsearch](https://www.elastic.co/).
@@ -18,7 +13,32 @@ __Example__ of a log file
 ```
 That's it. The line can contain anything as long as it's a valid json object. LinearLogFlow will take everything on the line and push it to [Elasticsearch](https://www.elastic.co/)
 
-# ELK Stack
+<!-- TOC depth:6 withLinks:1 updateOnSave:0 -->
+- [LinearLogFlow](#linearlogflow)
+	- [ELK Stack](#elk-stack)
+	- [SELK stack](#selk-stack)
+	- [Install](#install)
+		- [Start & Stop](#start-stop)
+		- [Uninstall](#uninstall)
+		- [Help](#help)
+	- [Configuration](#configuration)
+		- [Index Names](#index-names)
+		- [Change timestamp property](#change-timestamp-property)
+		- [Encoding](#encoding)
+		- [TTL – Time To Live](#ttl-time-to-live)
+		- [Include `@source`](#include-source)
+		- [Mapping](#mapping)
+		- [Index template](#index-template)
+		- [Posting to a cluster](#posting-to-a-cluster)
+		- [Posting different logs to different servers](#posting-different-logs-to-different-servers)
+		- [Post multiple log files to the same index type](#post-multiple-log-files-to-the-same-index-type)
+	- [Configuration – Reference](#configuration-reference)
+- [LogFlow](#logflow)
+
+<!-- /TOC -->
+
+
+## ELK Stack
 In the linux world the [ELK Stack ](https://www.elastic.co/products) is well known. It's a setup combining [Elasticsearch](https://www.elastic.co/) for indexing log files, [Logstash](https://www.elastic.co/products/logstash) for transforming and pushing logs into Elasticsearch, and [Kibana](https://www.elastic.co/products/kibana) for analysing and visualizing the data.
 
 In the .Net world, Logstash can be replaced with [LogFlow](https://github.com/LogFlow/LogFlow). In LogFlow the configuration and the transformation of log files are transformed by .Net code that you have to write. Excellent choice for transforming IIS log files for example.
@@ -68,7 +88,8 @@ __Example__ of a `logs.config` file
 
 In the example above, two types of log files for two different systems will be collected and sent to the specified [Elasticsearch](https://www.elastic.co/) server. The index name is based on each lines timestamp field (by default it is `@timestamp`´) so we will get a new index every month. The logs for `serviceA` will be indexed with the `_type` field set to `serviceA` and the logs for `systemX` will have `_type` set to `systemX`.
 
-#### Index Names<a id="index_indexName"></a>
+### Index Names
+<a id="index_indexName"></a>
 Index names can either be fixed, like `indexName="log"`, meaning all logs will end up in the same index (not recommended).
 ``` xml
 <index indexName="log">
@@ -80,7 +101,8 @@ Or based on each line's timestamp by specifying a [custom date format string](ht
 `log-yyyyMM` will create a new index every month.
 
 
-#### Change timestamp property <a id="log_timestamp"></a>
+### Change timestamp property
+<a id="log_timestamp"></a>
 If the `indexName` contains a [custom date format string](https://msdn.microsoft.com/en-us/library/8kb3ddd4%28v=vs.110%29.aspx), for example `log-{yyyyMM}` then every line must contain a timestamp property. By default `@timestamp`, `timestamp`, `datetime`, `date`, `time` will be used (in that order and in any casing). So if a line in your log file looks like below you do not need to change anything.
 ``` json
 {"@timestamp":"2015-04-22T15:02:45+02:00","level":"Info","message":"Starting","version":"1.0"}
@@ -112,7 +134,8 @@ With this setting you're now able to index lines like this:
 {"thedate":"2015-04-22T15:02:48+02:00","level":"Info","message":"User logged on","user":"HCanber"}
 ```
 
-#### Encoding<a id="log_encoding"></a>
+### Encoding
+<a id="log_encoding"></a>
 By default the encoding for UTF-8, UTF-16 (Big and Little endian) and UTF-32 (Big and Little endian) will be detected automatically if the file starts with a [Byte Order Mark (BOM)](http://en.wikipedia.org/wiki/Byte_order_mark). If no BOM is found, UTF-8 is used. To specify another set `encoding` to one of the following values `ascii`, `utf-8`, `utf-16be`, `utf-16le` (or `unicode`), `utf-32le`, `utf-32be`, `utf-7`.
 
 __Example__
@@ -137,7 +160,8 @@ __Example__
 The encoding _UTF-16 Little Endian_ will be used for `systemX` logs and as `serviceA` has specified `encoding` _ASCII_ will be used for its files.
 
 
-#### TTL – Time To Live<a id="log_ttl"></a>
+### TTL – Time To Live
+<a id="log_ttl"></a>
 If a value has been specified for `ttl`, the property `_ttl` will be set in every line sent to Elasticsearch. The format is a value followed one of the units `ms`, `s`, `h`, `d`, `w`.
 
 __Example__
@@ -169,7 +193,8 @@ __Note!__ If the log line already contains a `_ttl` value, it will be sent to El
 See [_ttl field in Elasticsearch Documentation](http://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-ttl-field.html) for more information.
 
 
-#### Include `@source` <a id="log_addSource"></a>
+### Include `@source`
+<a id="log_addSource"></a>
 Set `addSource="true"` to include the machine name hosting the LinearLogFlow instance in a `@source` property.
 
 ``` xml
@@ -178,7 +203,8 @@ Set `addSource="true"` to include the machine name hosting the LinearLogFlow ins
 
 If LinearLogFlow is running on the machine `ProductionServer1` then every line in ElasticSearch that LinearLogFlow posts will contain `@source: "ProductionServer1"`
 
-#### Mapping <a id="log_mapping"></a>
+### Mapping
+<a id="log_mapping"></a>
 To specify how properties should be indexed you may specify a mapping per type. You do this by creating a separate file and point to that in the `mapping` property.
 
 ``` xml
@@ -243,14 +269,16 @@ A log line is to be inserted into index _log-201504_. As it's a new index, it's 
 
 See http://www.elastic.co/guide/en/elasticsearch/reference/current/indices-put-mapping.html and http://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html for more information on mapping in Elasticsearch.
 
-#### Index template <a id="index_indexTemplate"></a>
+### Index template
+<a id="index_indexTemplate"></a>
 An index template can be specified on the `index` element by specifying a file on the `indexTemplate` property. The file must be a json file and follow the format described in [Elasticsearch documentation](http://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html).  The template will be written when a new index is created.
 
 ``` xml
 <index indexName="log-{yyyyMM}" indexTemplate="template.json">
 ```
 
-#### Posting to a cluster <a id="index_isCluster"></a>
+### Posting to a cluster
+<a id="index_isCluster"></a>
 Set `isCluster="true"` to specify that the specified server belongs to a cluster to be able to failover to other nodes in the cluster, if the specified server goes down.
 
 ``` xml
@@ -263,7 +291,8 @@ To specify more seed nodes separate them with `|`.
 <server uri="http://elasticserver1:9200|http://elasticserver2:9200" isCluster="true">
 ```
 
-#### Posting different logs to different servers <a id="multiple_server"></a>
+### Posting different logs to different servers
+<a id="multiple_server"></a>
 You may specify more than one `server` element, to post to different servers
 ``` xml
 <config>
@@ -281,7 +310,7 @@ You may specify more than one `server` element, to post to different servers
 ```
 In this example files for `serviceA` will be posted to `elasticserverA` and files for `systemX` will be posted to `elasticserverB`.
 
-#### Post multiple log files to the same index type
+### Post multiple log files to the same index type
 It's possible to have several `log` elements have the same `type` property to insert logs from different locations into the same index and type. The `name` property must then be specified on at least one of the `log` elements, in order to make the `log` elements distinguishable from each other
 
 ``` xml
@@ -326,4 +355,4 @@ Configuration is specified in a xml file called `logs.config`
 | | `timestamp` | _Optional_ Default: `@timestamp`, `timestamp` | If `indexName` contains a [custom date format string](https://msdn.microsoft.com/en-us/library/8kb3ddd4%28v=vs.110%29.aspx), for example `log-{yyyyMM}` then every line must contain a timestamp property. By default `@timestamp`, `timestamp`, `datetime`, `date`, `time` will be used (in that order and in any casing). Specify this if the timestamp is in another property in your log files. If the log files can contain the timestamp in different propertys, separate the names with <code>&#124;</code>. Example: <code>thedate&#124;now</code> [More info](#log_datetime) |
 
 # LogFlow
-ElastiocsearchLogFlow is based on (LogFlow)[https://github.com/LogFlow/LogFlow].
+LinearLogFlow is based on [LogFlow](https://github.com/LogFlow/LogFlow).
