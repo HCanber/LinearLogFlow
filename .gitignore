@@ -1,5 +1,7 @@
 #Based on https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+buildscripts/nuget.exe
+_release
 
 #Windows junk files
 [Tt]humbs.db
