@@ -1,4 +1,4 @@
-# BETA NOT RELEASED YET
+# NOT RELEASED YET
 &nbsp;
 The project is under development...
 &nbsp;
@@ -304,9 +304,9 @@ Configuration is specified in a xml file called `logs.config`
 </config>
 ```
 
-| Element | Property | | Description |
-|--|--|--|--|--|
-| `server` | | __Required__ | At least on `server` element is required. To index to different Elasticsearch servers/clusters the config file may contain more than one `server` element. [More info](#multiple_server)  |
+| Element | Property |     | Description |
+|:------- |:-------- |:--- |:----------- |
+| `server` | | __Required__ | At least one `server` element is required. To index to different Elasticsearch servers/clusters the config file may contain more than one `server` element. [More info](#multiple_server)  |
 | | `uri` | __Required__ | The uri to the server. Example: `http://localhost:9200`. For clusters specify seed nodes by separating them by <code>&#124;</code>. Example: <code>http://server1:9200&#124;http://server2:9200</code> [More info](#server_uri) |
 | | `isCluster` | _Optional_ Default: `false` | Set to `true` to specify that the specified server/servers are part of a cluster. [More info](#server_isCluster) |
 | `index` | | __Required__ | Every `server` element must contain at least one `index` element. More than one is allowed. |
