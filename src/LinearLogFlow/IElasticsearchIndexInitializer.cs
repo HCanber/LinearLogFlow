@@ -4,6 +4,6 @@ namespace LinearLogFlow
 {
 	public interface IElasticsearchIndexInitializer
 	{
-		void Initialize(ElasticClient client, string indexName);
+		void Initialize(IElasticClient client, string indexName);
 	}
 }

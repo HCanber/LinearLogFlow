@@ -20,7 +20,7 @@ namespace LinearLogFlow
 			_configs = configs;
 		}
 
-		public void Initialize(ElasticClient client, string indexName)
+		public void Initialize(IElasticClient client, string indexName)
 		{
 			if(_initializedIndexes.Contains(indexName)) return;
 			lock(_lock)
@@ -31,7 +31,7 @@ namespace LinearLogFlow
 			PerformInitialization(client, indexName);
 		}
 
-		protected virtual void PerformInitialization(ElasticClient client, string indexName)
+		protected virtual void PerformInitialization(IElasticClient client, string indexName)
 		{
 			var configsWithMappings = _configs.Where(c => !string.IsNullOrEmpty(c.MappingJson)).ToList();
 			if(_log.IsDebugEnabled)
