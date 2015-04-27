@@ -36,7 +36,8 @@ namespace LinearLogFlow.Outputs
 					.ExposeRawResponse();
 				return settings;
 			}
-			var clientSettings = new ConnectionSettings(Uris.First());
+			var clientSettings = new ConnectionSettings(Uris.First())
+				.ExposeRawResponse();
 			return clientSettings;
 		}
 	}
