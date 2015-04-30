@@ -54,7 +54,7 @@ The absolutely easiest way to write json log files is using [Serilog](serilog.ne
 1. Download LinearLogFlow
 1. Copy it to the a directory on the server
 1. Edit `logs.config` and `Nlog.config`, see below
-1. Execute `LogFlow.exe install`
+1. Execute `LogFlow.exe install`. Add `--sudo` if you don't have administrator privileges.
 1. Start the service `LogFlow.exe start` or manually in the Services Manager (run `services.msc`)
 
 ### Start & Stop
@@ -64,7 +64,7 @@ When LinearLogFlow has been installed as described above, you can start and stop
 - or manually in the Services Manager (run `services.msc`)
 
 ### Uninstall
-`LogFlow.exe uninstall`
+`LogFlow.exe uninstall`. Add `--sudo` if you don't have administrator privileges. 
 
 ### Help
 `LogFlow.exe help`
