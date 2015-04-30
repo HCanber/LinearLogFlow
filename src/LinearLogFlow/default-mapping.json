@@ -1,32 +1,7 @@
 ﻿{
-    "dynamic_templates": [
-        {
-            "string_properties_fields": {
-                "path_match": "properties.*",
-                "match_mapping_type": "string",
-                "mapping": {
-                    "{name}": {
-                        "type": "string",
-                        "index": "analyzed",
-                        "norms": {
-                            "enabled": false
-                        },
-                        "index_options": "docs",
+    "dynamic_date_formats": [ "date_optional_time", "hour_minute_second_fraction", "hour_minute_second", "hour_minute" ],   //dynamic_date_formats needs to go in first file
 
-                        "fields": {
-                            "raw": {
-                                "index": "not_analyzed",
-                                "ignore_above": 256,
-                                "type": "string"
-                            }
-                        }
-
-                    }
-                }
-            }
-        }
-    ],
-    "properties": {
+    "properties": { 
         "@timestamp": {
             "index": "not_analyzed",
             "type": "date"
@@ -37,27 +12,6 @@
         },
         "message": {
             "index": "analyzed",
-            "type": "string"
-        },
-        "messageHash": {
-            "index": "not_analyzed",
-            "type": "string"
-        },
-        "exception": {
-            "dynamic": true,
-            "path": "full",
-            "type": "object"
-        },
-        "exceptionHash": {
-            "index": "not_analyzed",
-            "type": "string"
-        },
-        "template": {
-            "index": "analyzed",
-            "type": "string"
-        },
-        "templateHash": {
-            "index": "not_analyzed",
             "type": "string"
         }
     },

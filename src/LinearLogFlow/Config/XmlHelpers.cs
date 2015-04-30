@@ -19,11 +19,17 @@ namespace LinearLogFlow.Config
 
 		public static T AttributeValue<T>(this XElement element, string attributeName, Func<string, T> converter, T defaultValue = default(T), bool trim = true)
 		{
+			return AttributeValue<T>(element, attributeName, converter, () => defaultValue, trim);
+		}
+
+		public static T AttributeValue<T>(this XElement element, string attributeName, Func<string, T> converter, Func<T> defaultValue, bool trim = true)
+		{
 			var xAttribute = element.Attribute(attributeName);
-			if(xAttribute == null) return defaultValue;
+			if(xAttribute == null) return defaultValue!=null? defaultValue():default(T);
 
 			return converter(trim ? xAttribute.Value.Trim() : xAttribute.Value);
 		}
+
 
 		public static string FormatXmlMessage(XObject obj, string filename, string format, params object[] args)
 		{

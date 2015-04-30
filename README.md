@@ -39,11 +39,11 @@ That's it. The line can contain anything as long as it's a valid json object. Li
 
 
 ## ELK Stack
-In the linux world the [ELK Stack ](https://www.elastic.co/products) is well known. It's a setup combining [Elasticsearch](https://www.elastic.co/) for indexing log files, [Logstash](https://www.elastic.co/products/logstash) for transforming and pushing logs into Elasticsearch, and [Kibana](https://www.elastic.co/products/kibana) for analysing and visualizing the data.
+The [ELK Stack ](https://www.elastic.co/products) is well known is a setup combining [Elasticsearch](https://www.elastic.co/) for indexing log files, [Logstash](https://www.elastic.co/products/logstash) for transforming and pushing logs into Elasticsearch, and [Kibana](https://www.elastic.co/products/kibana) for analysing and visualizing the data.
 
-In the .Net world, Logstash can be replaced with [LogFlow](https://github.com/LogFlow/LogFlow). In LogFlow the configuration and the transformation of log files are transformed by .Net code that you have to write. Excellent choice for transforming IIS log files for example.
+In the .Net world, Logstash can be replaced with [LogFlow](https://github.com/LogFlow/LogFlow). In LogFlow the configuration and the transformation of log files is handled with .Net code (that you have to write). Excellent choice for transforming IIS log files for example.
 
-But if your log files already are in the correct json format you shouldn't need to write any transformation code, and this is where LinearLogFlow comes in. It pushes your log lines as-is to Elasticsearch.
+However, if your log files already are in the correct json format LinearLogFlow pushes your log lines as-is to Elasticsearch.
 
 ## SELK stack
 The absolutely easiest way to write json log files is using [Serilog](serilog.net). So the SELK stack is: Serilog, Elasticsearch, LinearLogFlow, Kibana
@@ -64,7 +64,7 @@ When LinearLogFlow has been installed as described above, you can start and stop
 - or manually in the Services Manager (run `services.msc`)
 
 ### Uninstall
-`LogFlow.exe uninstall`. Add `--sudo` if you don't have administrator privileges. 
+`LogFlow.exe uninstall`. Add `--sudo` if you don't have administrator privileges.
 
 ### Help
 `LogFlow.exe help`
@@ -212,34 +212,16 @@ To specify how properties should be indexed you may specify a mapping per type. 
 ```
 
 <a id="mapping_format"></a>
-The format of the mapping json file looks almost like the standard format used when PUT:ing a mapping.
-Normally, the mapping format for the type `tweet` could look like this:
+Create the mapping json file without the type property, in this example without a `tweet` property:
 
 ``` xml
-// This is NOT the format used in mapping files
 {
-  "tweet" : {
-    "properties" : {
-      "message" : {
-        "type" : "string",
-        "store" : true
-      }
-    }
-  }
-}
-```
-
-When creating the mapping json file the `tweet` property is removed, so it becomes:
-
-``` xml
-// This IS the format used in mapping files
-{
-  "properties" : {
-    "message" : {
-      "type" : "string",
-      "store" : true
-    }
-  }
+	"properties" : {
+		"correlationId " : {
+			"type": "string",
+			"index": "not_analyzed"
+		}
+	}
 }
 ```
 
@@ -251,7 +233,8 @@ This means that the same mapping file may be used for different types:
 ```
 
 <a id="index_defaultMapping"></a>
-You may also specify `defaultMapping` on the `index` element that will apply to all `log` elements unless the specify their own mapping.
+You may also specify `defaultMapping` on the `index` element that will be applied to all `log` elements. If a `log` element specifies a `mapping` it will be applied _after_ the `defaultMapping`.
+
 ``` xml
 <index indexName="log-{yyyyMM}" defaultMapping="mapping.json">
   <log type="serviceA" path="C:\ServiceA\logs\log-*.txt" />
@@ -259,13 +242,39 @@ You may also specify `defaultMapping` on the `index` element that will apply to 
 </index>
 ```
 
-In the example above `serviceA` type will use the mapping specified in `mapping.json` while `systemX` will use `systemXmapping.json`.
+In the example above the mapping in `mapping.json` will be applied for the `serviceA` type.
+For `systemX` `mapping.json` will be applied first, and then the mapping in `systemXmapping.json` will be merged. The merging is done by Elasticsearch (meaning LinearLogFlow first will PUT `mapping.json` and then PUT `systemXmapping.json`)
 
 __Note!__ The mapping will be put when a new index is created. It will also be put the first time LinearLogFlow writes a log line to an index, no matter if the index existed or not, after it has been restarted.
 
 __Example__
-A log line is to be inserted into index _log-201504_. As it's a new index, it's created (potentially with an index template, see [below](#index_indexTemplate)). After that, the mapping is put into the index. The log line is inserted. The LinearLogFlow is restarted. A new log line is to be inserted into the existing index _log-201504_. As it's the first time, after LinearLogFlow was started, a line is inserted into that index, the mapping will be put again.
+A log line is to be inserted into index _log-201504_. As it's a new index, it's created (potentially with an index template, see [below](#index_indexTemplate)). After that, the mapping is put into the index. The log line is inserted. Let's say that LinearLogFlow at this point is restarted. WHen LinearLogFlow is up and running it encounters a new log line that is to be inserted into the existing index _log-201504_. As it's the first time a line is inserted into that index, after LinearLogFlow was started, the mapping will be PUT again.
 
+####Separating mappings into several files
+You may specify more than one mapping file for `defaultMapping` and `mapping` by separating the paths with `|`. The mappings will be put to the type mapping in the specified order.
+
+``` xml
+<config>
+	<server uri="http://elasticserver:9200" defaultTtl="5d">
+		<index indexName="service-log-{yyyyMM}" defaultMapping="mapping.json|services-mapping.json">
+			<log type="serviceA" path="C:\ServiceA\logs\log-*.txt" />
+			<log type="serviceB"  path="D:\serviceB\log-*.txt" mapping="serviceB-mapping.json" />
+		</index>
+		<index indexName="appe-log-{yyyyMM}" defaultMapping="mapping.json|apps-mapping.json">
+			<log type="appX" path="C:\AppX\log-*.txt" />
+			<log type="appY" path="C:\AppY\log-*.txt" mapping="specialApp-mapping.json|appY-mapping.json"/>
+		</index>
+	</server>
+</config>
+```
+In the example above the types will receive the mappings in this order:
+
+|Type|Mapping|
+|---|---|
+|serviceA| `mapping.json` `services-mapping.json` |
+|serviceB| `mapping.json` `services-mapping.json` `serviceB-mapping.json`|
+|appX| `mapping.json` `apps-mapping.json` |
+|appY| `mapping.json` `apps-mapping.json` `specialApp-mapping.json` `appY-mapping.json`|
 
 See http://www.elastic.co/guide/en/elasticsearch/reference/current/indices-put-mapping.html and http://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html for more information on mapping in Elasticsearch.
 
@@ -343,14 +352,14 @@ Configuration is specified in a xml file called `logs.config`
 | | `indexTemplate` | _Optional_ | A json file containing the settings and mappings for the index  [More info](#log_indexTemplate) |
 | | `defaultEncoding` | _Optional_ Default: `utf-8` | The default encoding of the log files. By default UTF-8, UTF-16 (Big and Little endian) and UTF-32 (Big and Little endian) will be detected automatically if the file starts with a [Byte Order Mark (BOM)](http://en.wikipedia.org/wiki/Byte_order_mark). If no BOM is found, UTF-8 is used. Example: `ascii` [More info](#index_defaultEncoding) |
 | | `defaultTtt` | _Optional_ | If specified the value will be written in the `_ttl` property on each line/document. The format is a value followed one of the units `ms`, `s`, `h`, `d`, `w`. Example: `4w`  [More info](#index_defaultTtl)  |
-| | `defaultMapping` | _Optional_ | A path to a json file containg the mapping that will be applied to all index types inserted by LinearLogFlow. Example: `mapping.json` [Mapping format](#="mapping_format) |
+| | `defaultMapping` | _Optional_ | A path to a json file containg the mapping that will be applied to all index types inserted by LinearLogFlow. More than one may be specified by separating them by <code>&#124;</code>. Example: `mapping.json` and <code>mapping.json&#124;mapping2.json</code> [More info](#log_mapping) |
 | `log` | | __Required__ | Every `index` element must contain at least one `log` element. More than one is allowed. Every `log` must be unique. The uniqueness is determined by the value of `name` which defaults to the value of `type`. If two or more share the same `type` value, `name` must be manually specified to ensure uniqueness. |
 | | `type` | __Required__ | The index type or mapping type under which the log will be inserted. Example: `SystemA` See [Elasticsearch documentation](http://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html) |
 | | `path` | __Required__ | The path to where log files can be found. May contain the wildcard `*` in the file name, but not in the directory name. Example: `C:\logs\log-*.txt`. To collect files from more than one directory, use a `log` element for every directory and set different `name` values on every element. |
 | | `name` | _Optional_ Defaults to the value of `type` | The name is optional as long as all `log` elements have unique `type` values. If two or more `log` share the same `type` value then a `name` must be specified to make them distinguishable from each other. __Note__ The name is only used internally by LinearLogFlow and is never written to Elasticsearch. [More info](#log_name) |
 | | `encoding` | _Optional_ Default: `utf-8` | The encoding of the log files. By default UTF-8, UTF-16 (Big and Little endian) and UTF-32 (Big and Little endian) will be detected automatically if the file starts with a [Byte Order Mark (BOM)](http://en.wikipedia.org/wiki/Byte_order_mark). If no BOM is found, UTF-8 is used. Overrides `defaultEncoding`, if it has been specified. Example: `ascii` [More info](#log_encoding) |
 | | `ttl` | _Optional_ | If specified the value will be written in the `_ttl` property on each line/document. The format is a value followed one of the units `ms`, `s`, `h`, `d`, `w`. Overrides `defaultTtl`, if it has been specified. Example: `4w`  [More info](#log_ttl)  |
-| | `mapping` | _Optional_ | A path to a json file containg the mapping that will be applied to the index for the specified `type`.  Overrides `defaultMapping`, if it has been specified. Example: `mapping.json` [Mapping format](#="mapping_format) |
+| | `mapping` | _Optional_ | A path to a json file containg the mapping that will be applied to the index for the specified `type`.  More than one may be specified by separating them by <code>&#124;</code>. If `defaultMapping` has been specified on the parent `index` element these will be applied first. Example: `mapping.json` and <code>mapping.json&#124;mapping2.json</code>. [More info](#log_mapping) |
 | | `addSource` | _Optional_ Default: `false` | If set to `true` the machine name that hosts the LinearLogFlow instance will be ritten in the `@source` property. [More info](#log_addSource) |
 | | `timestamp` | _Optional_ Default: `@timestamp`, `timestamp` | If `indexName` contains a [custom date format string](https://msdn.microsoft.com/en-us/library/8kb3ddd4%28v=vs.110%29.aspx), for example `log-{yyyyMM}` then every line must contain a timestamp property. By default `@timestamp`, `timestamp`, `datetime`, `date`, `time` will be used (in that order and in any casing). Specify this if the timestamp is in another property in your log files. If the log files can contain the timestamp in different propertys, separate the names with <code>&#124;</code>. Example: <code>thedate&#124;now</code> [More info](#log_datetime) |
 

@@ -46,6 +46,7 @@ namespace LinearLogFlow.Config
 			private readonly IConfigXmlDocValidator _configXmlDocValidator;
 			private readonly IIndexNameParser _indexNameParser;
 			private readonly Dictionary<string, bool> _seenLogFlowNames;
+			private readonly Dictionary<string, string> _jsonContentForPath = new Dictionary<string, string>();
 
 			public InnerParser(IEncodingParser encodingParser, ITtlValidator ttlValidator, IConfigXmlDocValidator configXmlDocValidator, IIndexNameParser indexNameParser)
 			{
@@ -155,9 +156,9 @@ namespace LinearLogFlow.Config
 			{
 				string defaultTtl;
 				Encoding defaultEncoding;
-				string defaultMappingJson;
+				List<JsonWithPath> defaultMappingJsons;
 				string indexName;
-				var indexConfig = ParseIndexElementOnly(indexElement, configName, out indexName, out defaultTtl, out defaultEncoding, out defaultMappingJson);
+				var indexConfig = ParseIndexElementOnly(indexElement, configName, out indexName, out defaultTtl, out defaultEncoding, out defaultMappingJsons);
 				IndexConfig existingIndexConfig;
 				Dictionary<string, IndexTypeConfig> indexTypeConfigByType;
 				if(indexConfigByName.TryGetValue(indexName, out existingIndexConfig))
@@ -173,10 +174,10 @@ namespace LinearLogFlow.Config
 				}
 
 				var logElements = indexElement.Elements().ToList();
-				ParseLogElements(logElements, indexTypeConfigByType, defaultEncoding, defaultTtl, defaultMappingJson, configName);
+				ParseLogElements(logElements, indexTypeConfigByType, defaultEncoding, defaultTtl, defaultMappingJsons, configName);
 			}
 
-			protected virtual IndexConfig ParseIndexElementOnly(XElement indexElement, string configName, out string indexName, out string defaultTtl, out Encoding defaultEncoding, out string defaultMappingJson)
+			protected virtual IndexConfig ParseIndexElementOnly(XElement indexElement, string configName, out string indexName, out string defaultTtl, out Encoding defaultEncoding, out List<JsonWithPath> defaultMappingJsons)
 			{
 				indexName = ConvertToIndexNameFormat(indexElement.AttributeValue(XmlElementNames.Index.IndexName));
 
@@ -189,8 +190,14 @@ namespace LinearLogFlow.Config
 				defaultTtl = GetTtl(indexElement.Attribute(XmlElementNames.Index.DefaultTtl), configName);
 				defaultEncoding = GetEncoding(indexElement.Attribute(XmlElementNames.Index.DefaultEncoding), configName);
 				var defaultMappingAttribute = indexElement.Attribute(XmlElementNames.Index.DefaultMapping);
-				var mappingJson = GetValidJson(defaultMappingAttribute, configName, "default mapping file");
-				defaultMappingJson = mappingJson;
+				var mappingPaths = GetPathsFromAttribute(indexElement, XmlElementNames.Index.DefaultMapping);
+				defaultMappingJsons = new List<JsonWithPath>(mappingPaths.Count);
+				foreach(var path in mappingPaths)
+				{
+					var mappingJson = GetValidJson(path, configName, "default mapping file", defaultMappingAttribute);
+					if(mappingJson != null)
+						defaultMappingJsons.Add(new JsonWithPath(path, mappingJson));
+				}
 
 				return indexConfig;
 			}
@@ -223,15 +230,15 @@ namespace LinearLogFlow.Config
 
 
 
-			protected virtual void ParseLogElements(IReadOnlyCollection<XElement> logElements, Dictionary<string, IndexTypeConfig> indexTypeConfigByType, Encoding defaultEncoding, string defaultTtl, string defaultMappingJson, string configName)
+			protected virtual void ParseLogElements(IReadOnlyCollection<XElement> logElements, Dictionary<string, IndexTypeConfig> indexTypeConfigByType, Encoding defaultEncoding, string defaultTtl, List<JsonWithPath> defaultMappingJsons, string configName)
 			{
 				foreach(var logElement in logElements)
 				{
-					ParseLogElement(logElement, indexTypeConfigByType, defaultEncoding, defaultTtl, defaultMappingJson, configName);
+					ParseLogElement(logElement, indexTypeConfigByType, defaultEncoding, defaultTtl, defaultMappingJsons, configName);
 				}
 			}
 
-			protected virtual void ParseLogElement(XElement logElement, Dictionary<string, IndexTypeConfig> indexTypeConfigByType, Encoding defaultEncoding, string defaultTtl, string defaultMappingJson, string configName)
+			protected virtual void ParseLogElement(XElement logElement, Dictionary<string, IndexTypeConfig> indexTypeConfigByType, Encoding defaultEncoding, string defaultTtl, List<JsonWithPath> defaultMappingJsons, string configName)
 			{
 				var indexTypeConfig = ParseLogElementOnly(logElement, defaultEncoding, defaultTtl, configName);
 				var type = indexTypeConfig.Type;
@@ -242,7 +249,7 @@ namespace LinearLogFlow.Config
 				}
 				else
 				{
-					HandleNewIndexTypeConfig(indexTypeConfig, logElement, defaultMappingJson, configName);
+					HandleNewIndexTypeConfig(indexTypeConfig, logElement, defaultMappingJsons, configName);
 					indexTypeConfigByType.Add(type, indexTypeConfig);
 				}
 			}
@@ -265,13 +272,18 @@ namespace LinearLogFlow.Config
 
 				var type = logElement.AttributeValue(typeAttributeName);
 
-				var mappingPath = logElement.AttributeValue(mappingAttributeName, v => Path.GetFullPath(v));
+				var mappingPaths = GetPathsFromAttribute(logElement, mappingAttributeName);
 				var indexTypeConfig = new IndexTypeConfig
 				{
 					Type = type,
-					MappingPath = mappingPath,
+					MappingPaths = mappingPaths,
 				};
 				return indexTypeConfig;
+			}
+
+			protected static List<string> GetPathsFromAttribute(XElement logElement, string mappingAttributeName)
+			{
+				return logElement.AttributeValue(mappingAttributeName, v => v.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries).Select(path => Path.GetFullPath(path)).ToList(),()=>new List<string>());
 			}
 
 
@@ -301,29 +313,40 @@ namespace LinearLogFlow.Config
 					AddSourceField = logElement.AttributeBoolValue(XmlElementNames.Log.AddSource),
 					Encoding = GetEncoding(logElement.Attribute(XmlElementNames.Log.Encoding), configName),
 					Ttl = GetTtl(logElement.Attribute(XmlElementNames.Log.Ttl), configName),
-					TimestampPropertyNames = logElement.AttributeValue(XmlElementNames.Log.Timestamp, v=>v.Split(new []{'|'},StringSplitOptions.RemoveEmptyEntries))
+					TimestampPropertyNames = logElement.AttributeValue(XmlElementNames.Log.Timestamp, v => v.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
 				};
 				return logConfig;
 			}
 
-			protected virtual void HandleNewIndexTypeConfig(IndexTypeConfig indexTypeConfig, XElement logElement, string defaultMappingJson, string configName)
+			protected virtual void HandleNewIndexTypeConfig(IndexTypeConfig indexTypeConfig, XElement logElement, List<JsonWithPath> defaultMappingJsons, string configName)
 			{
-				var mappingJson = GetValidJson(indexTypeConfig.MappingPath, configName, "mapping file", logElement) ?? defaultMappingJson;
-				if(mappingJson != null)
-					indexTypeConfig.MappingJson = "{\"" + indexTypeConfig.Type + "\":" + mappingJson + "}";
+				var paths = indexTypeConfig.MappingPaths;
+				var jsons = new List<JsonWithPath>(defaultMappingJsons.Count+ paths.Count);
+				var type = indexTypeConfig.Type;
+				foreach(var jsonWithPath in defaultMappingJsons)
+				{
+					jsons.Add(new JsonWithPath(jsonWithPath.Path,jsonWithPath.Json));
+				}
+				foreach(var path in paths)
+				{
+					var mappingJson = GetValidJson(path, configName, "mapping file", logElement);
+					if(mappingJson != null)
+						jsons.Add(new JsonWithPath(path, mappingJson));
+				}
+				indexTypeConfig.MappingJsons = jsons;
 			}
 
 			protected virtual void MergeIndexTypeConfigIntoExisting(IndexTypeConfig newIndexTypeConfig, IndexTypeConfig existingTypeConfig, string configName, XElement logElement)
 			{
-				var newPath = newIndexTypeConfig.MappingPath;
-				var existingPath = existingTypeConfig.MappingPath;
-				if(newPath != null && existingPath != null)
+				var newPaths = newIndexTypeConfig.MappingPaths;
+				var existingPaths = existingTypeConfig.MappingPaths;
+				if(newPaths.Count>0 && !newPaths.SequenceEqual(existingPaths,StringComparer.OrdinalIgnoreCase))
 				{
-					if(!string.Equals(newPath, existingPath, StringComparison.OrdinalIgnoreCase))
-					{
-						var message = XmlHelpers.FormatXmlMessage(logElement, configName, "Mappings for the same index type on the same server must point to same file. A different path was specified");
-						throw new ConfigurationErrorsException(message, configName, ((IXmlLineInfo)logElement).LineNumber);
-					}
+					var message = newPaths.Count == 1 && existingPaths.Count == 1 
+						? XmlHelpers.FormatXmlMessage(logElement, configName, "Mappings for the same index type on the same server must point to same file. A different path was specified") 
+						: XmlHelpers.FormatXmlMessage(logElement, configName, "Mappings for the same index type on the same server must point to same files in the same order. A different set of paths was specified");
+
+					throw new ConfigurationErrorsException(message, configName, ((IXmlLineInfo)logElement).LineNumber);
 				}
 				existingTypeConfig.Logs.AddRange(newIndexTypeConfig.Logs);
 			}
@@ -375,17 +398,20 @@ namespace LinearLogFlow.Config
 			{
 				if(string.IsNullOrEmpty(jsonFilePath)) return null;
 				jsonFilePath = Path.GetFullPath(jsonFilePath);
+				string json;
+				if(_jsonContentForPath.TryGetValue(jsonFilePath, out json))
+					return json;
 				if(!File.Exists(jsonFilePath))
 				{
 					var message = XmlHelpers.FormatXmlMessage(xobject, filename, "Could not find the {0} \"{1}\"", fileType, jsonFilePath);
 					throw new ConfigurationErrorsException(message, filename, ((IXmlLineInfo)xobject).LineNumber);
 				}
-				var indexTemplateJson = File.ReadAllText(jsonFilePath);
+				json = File.ReadAllText(jsonFilePath);
 				try
 				{
-					var json = (JObject)JsonConvert.DeserializeObject(indexTemplateJson);
-
-					return indexTemplateJson;
+					var jsonObj = (JObject)JsonConvert.DeserializeObject(json);
+					_jsonContentForPath.Add(jsonFilePath, json);
+					return json;
 				}
 				catch(Exception e)
 				{

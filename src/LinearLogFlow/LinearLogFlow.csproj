@@ -72,6 +72,7 @@
   <ItemGroup>
     <Compile Include="ByteExensions.cs" />
     <Compile Include="Config\ConfigAndName.cs" />
+    <Compile Include="Config\JsonWithPath.cs" />
     <Compile Include="Config\XmlConfigParser.cs" />
     <Compile Include="Config\ConfigXmlDocValidator.cs" />
     <Compile Include="Config\IIndexNameParser.cs" />
