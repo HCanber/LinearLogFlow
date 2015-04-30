@@ -149,7 +149,7 @@ namespace LinearLogFlow.Outputs
 				throw new ApplicationException(string.Format("Failed to create index: '{0}'.\nRequest:\n{1}\nResponse:\n{2}", indexName, response.Request.ToUtf8String(), response.ResponseRaw.ToUtf8String()));
 			}
 
-			_log.Trace("{0}: Index '{1}' successfully created.", LogContext.LogType, indexName);
+			_log.Info("{0}: Index '{1}' successfully created.", LogContext.LogType, indexName);
 		}
 
 		protected virtual string GetIndexTemplateJson()

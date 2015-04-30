@@ -63,7 +63,7 @@ namespace LinearLogFlow
 					attempt++;
 				} while(attempt < numberOfAttempts);
 				if(wasSuccesful)
-					_log.Trace("Mapping for type {1} in index {0} was successful. Attempt {2}/{3}", indexName, elasticType, attempt, numberOfAttempts);
+					_log.Info("Mapping for type {1} in index {0} was successful. Attempt {2}/{3}", indexName, elasticType, attempt, numberOfAttempts);
 				else
 					_log.Error("Unable to {3} index mapping for type {0} in index {1} on {2}. Made {4} attempts: {5}", elasticType, indexName, response.RequestUrl, response.RequestMethod, numberOfAttempts, response.ResponseRaw.ToUtf8String());
 			}
