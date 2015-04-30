@@ -38,33 +38,16 @@ namespace LinearLogFlow.Outputs
 
 		protected override string CreateJsonBody(Result result, string id, DateTimeOffset timestamp)
 		{
-			SetMessage(result);
 			SetLogLineId(result, id);
-			SetLogType(result);
 			SetMachineName(result);
 			SetTtl(result);
 			var json = SerializeResultJson(result.Json);
 			return json;
 		}
 
-		protected virtual void SetMessage(Result result)
-		{
-			var messageProperty = result.Json[ElasticSearchFields.Message] as JValue;
-			if(messageProperty == null || string.IsNullOrWhiteSpace(messageProperty.Value.ToString()))
-			{
-				messageProperty = new JValue(result.Line);
-				result.Json[ElasticSearchFields.Message] = messageProperty;
-			}
-		}
-
 		protected virtual void SetLogLineId(Result result, string id)
 		{
 			result.Json[ElasticSearchFields.Id] = new JValue(id);
-		}
-
-		protected virtual void SetLogType(Result result)
-		{
-			result.Json[ElasticSearchFields.Type] = new JValue(LogContext.LogType);
 		}
 
 		protected virtual void SetMachineName(Result result)

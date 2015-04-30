@@ -17,6 +17,7 @@ namespace LinearLogFlow
 			var fileInput = encoding != null ? new FileInput(logFilePath, encoding, false) : new FileInput(logFilePath);
 			CreateProcess(logType, logFlowName)
 				.FromInput(fileInput)
+				.Then(new ClearJsonLogProcessor())
 				.Then(new ElasticsearchLogProcessor())
 				.ToOutput(new ElasticsearchOutput(elasticConfig, elasticsearchIndexInitializer));
 		}

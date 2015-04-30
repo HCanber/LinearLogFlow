@@ -71,6 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ByteExensions.cs" />
+    <Compile Include="ClearJsonLogProcessor.cs" />
     <Compile Include="Config\ConfigAndName.cs" />
     <Compile Include="Config\JsonWithPath.cs" />
     <Compile Include="Config\XmlConfigParser.cs" />
