@@ -2,6 +2,7 @@
 
 buildscripts/nuget.exe
 _release
+_release_nuget
 
 #Windows junk files
 [Tt]humbs.db
